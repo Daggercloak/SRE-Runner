@@ -64,6 +64,8 @@ spec:
             items:
               - key: example-dashboard.json
                 path: example-dashboard.json
+              - key: sre-runner-dashboard.json
+                path: sre-runner-dashboard.json
 
 
 ---
@@ -177,6 +179,123 @@ data:
           ],
           "title": "CPU Usage",
           "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 39,
+      "version": 1
+    }
+  sre-runner-dashboard.json: |
+    {
+      "id": null,
+      "uid": "sre-runner-dashboard",
+      "title": "SRE Runner Dashboard",
+      "tags": ["sre-runner", "sre"],
+      "timezone": "browser",
+      "editable": true,
+      "panels": [
+        {
+          "id": 1,
+          "title": "Game Active",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_game_active",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Current Score",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 6,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_current_score",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Current Speed",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 12,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_current_speed",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Games Started",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 18,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_games_started_total",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Collisions by Type",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 6
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_collisions_total",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "title": "Obstacles Avoided by Type",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 6
+          },
+          "targets": [
+            {
+              "expr": "sre_runner_obstacles_avoided_total",
+              "legendFormat": "{{type}}",
+              "refId": "A"
+            }
+          ]
         }
       ],
       "schemaVersion": 39,
