@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-runner
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: sre-runner
+
+  template:
+    metadata:
+      labels:
+        app: sre-runner
+
+    spec:
+      containers:
+        - name: sre-runner
+          image: sre-runner:v2
+          imagePullPolicy: Never
+          ports:
+           - name: metrics
+             containerPort: 9090

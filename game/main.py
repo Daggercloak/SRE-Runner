@@ -2,7 +2,15 @@ import random
 import sys
 
 import pygame
-
+from metrics import (
+    collisions,
+    current_score,
+    current_speed,
+    game_active,
+    games_started,
+    obstacles_avoided,
+    start_metrics_server,
+)
 
 # --------------------------------------------------
 # Configuration
@@ -21,6 +29,9 @@ JUMP_STRENGTH = -18
 STARTING_SPEED = 7
 MAX_SPEED = 16
 
+GROUND_OBSTACLE = "ground"
+FLYING_OBSTACLE = "flying"
+
 
 # --------------------------------------------------
 # Colors
@@ -30,7 +41,8 @@ BACKGROUND = (245, 245, 245)
 GROUND = (45, 45, 45)
 
 PLAYER_COLOR = (0, 120, 215)
-OBSTACLE_COLOR = (220, 60, 60)
+GROUND_OBSTACLE_COLOR = (220, 60, 60)
+FLYING_OBSTACLE_COLOR = (150, 60, 200)
 
 TEXT_COLOR = (40, 40, 40)
 GAME_OVER_COLOR = (200, 40, 40)
@@ -41,6 +53,8 @@ GAME_OVER_COLOR = (200, 40, 40)
 # --------------------------------------------------
 
 pygame.init()
+
+start_metrics_server(port=9090)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
@@ -81,6 +95,7 @@ obstacle = pygame.Rect(
     45
 )
 
+obstacle_type = GROUND_OBSTACLE
 
 # --------------------------------------------------
 # Game state
@@ -100,15 +115,44 @@ obstacle_speed = STARTING_SPEED
 
 def reset_obstacle():
 
-    obstacle.x = (
-        WIDTH + random.randint(200, 600)
-    )
+    global obstacle_type
 
-    obstacle.height = random.randint(35, 65)
+    obstacle.x = WIDTH + random.randint(250, 600)
 
-    obstacle.y = (
-        GROUND_Y - obstacle.height
-    )
+    # Only ground obstacles at the beginning of the game
+    if score < 1000:
+
+        obstacle_type = GROUND_OBSTACLE
+
+    else:
+
+        # After score 1000:
+        obstacle_type = random.choices(
+            [
+                GROUND_OBSTACLE,
+                FLYING_OBSTACLE
+            ],
+            weights=[
+                70,
+                30
+            ],
+            k=1
+        )[0]
+
+    if obstacle_type == GROUND_OBSTACLE:
+
+        obstacle.width = random.randint(30, 45)
+        obstacle.height = random.randint(35, 65)
+
+        obstacle.y = GROUND_Y - obstacle.height
+
+    else:
+
+        obstacle.width = 55
+        obstacle.height = 30
+
+        obstacle.y = GROUND_Y - 105
+    
 
 
 def reset_game():
@@ -134,6 +178,11 @@ def reset_game():
 
     reset_obstacle()
 
+    games_started.inc()
+    game_active.set(1)
+    current_score.set(score)
+    current_speed.set(obstacle_speed)
+
 
 def draw_text(text, font_object, color, x, y):
 
@@ -154,6 +203,11 @@ def draw_text(text, font_object, color, x, y):
 # --------------------------------------------------
 
 reset_obstacle()
+
+games_started.inc()
+game_active.set(1)
+current_score.set(score)
+current_speed.set(obstacle_speed)
 
 
 # --------------------------------------------------
@@ -223,12 +277,21 @@ while running:
 
         if obstacle.right < 0:
 
+            obstacles_avoided.laebls(
+                type=obstacle_type
+            ).inc()
+
             reset_obstacle()
 
-
-        # Collision detection
+        # Collisions
 
         if player.colliderect(obstacle):
+
+            collisions.labels(
+                type=obstacle_type
+            ).inc()
+
+            game_active.set(0)
 
             game_over = True
 
@@ -240,7 +303,8 @@ while running:
 
         # Increase score
 
-        score += 1
+        score += 5
+        current_score.set(score)
 
 
         # Increase difficulty
@@ -249,6 +313,7 @@ while running:
             STARTING_SPEED + score // 500,
             MAX_SPEED
         )
+        current_speed.set(obstacle_speed)
 
 
     # ----------------------------------------------
@@ -289,14 +354,27 @@ while running:
     )
 
 
+    # ----------------------------------------------
     # Obstacle
+    # ----------------------------------------------
 
-    pygame.draw.rect(
-        screen,
-        OBSTACLE_COLOR,
-        obstacle,
-        border_radius=4
-    )
+    if obstacle_type == GROUND_OBSTACLE:
+
+        pygame.draw.rect(
+            screen,
+            GROUND_OBSTACLE_COLOR,
+            obstacle,
+            border_radius=4
+        )
+
+    else:
+
+        pygame.draw.rect(
+            screen,
+            FLYING_OBSTACLE_COLOR,
+            obstacle,
+            border_radius=10
+        )
 
 
     # ----------------------------------------------

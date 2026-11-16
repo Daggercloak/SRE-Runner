@@ -1,0 +1,184 @@
+# ==================================================
+# Grafana Deployment
+# ==================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-deployment
+  namespace: monitoring
+  labels:
+    app: grafana
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: grafana
+
+  template:
+    metadata:
+      labels:
+        app: grafana
+
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+
+          ports:
+            - containerPort: 3000
+
+          volumeMounts:
+            # Prometheus datasource configuration
+            - name: grafana-config-datasources
+              mountPath: /etc/grafana/provisioning/datasources
+              readOnly: true
+
+            # Dashboard provider configuration
+            - name: grafana-dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+
+            # Actual dashboard JSON files
+            - name: grafana-dashboard-files
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+
+      volumes:
+        - name: grafana-config-datasources
+          configMap:
+            name: grafana-datasources-config
+
+        - name: grafana-dashboard-provider
+          configMap:
+            name: grafana-dashboards-config
+            items:
+              - key: dashboards.yaml
+                path: dashboards.yaml
+
+        - name: grafana-dashboard-files
+          configMap:
+            name: grafana-dashboards-config
+            items:
+              - key: example-dashboard.json
+                path: example-dashboard.json
+
+
+---
+
+# ==================================================
+# Grafana Service
+# ==================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: monitoring
+  labels:
+    app: grafana
+
+spec:
+  selector:
+    app: grafana
+
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+
+  type: NodePort
+
+
+---
+
+# ==================================================
+# Prometheus Datasource
+# ==================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources-config
+  namespace: monitoring
+  labels:
+    app: grafana
+
+data:
+  datasources.yaml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-service.monitoring.svc.cluster.local:9090
+        isDefault: true
+        editable: true
+
+
+---
+
+# ==================================================
+# Dashboard Provisioning
+# ==================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-config
+  namespace: monitoring
+  labels:
+    app: grafana
+
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+
+        options:
+          path: /var/lib/grafana/dashboards
+
+  example-dashboard.json: |
+    {
+      "id": null,
+      "uid": "example-dashboard",
+      "title": "Example Dashboard",
+      "tags": [],
+      "timezone": "browser",
+      "editable": true,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "id": 1,
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "sum by(job) (rate(process_cpu_seconds_total[1m]))",
+              "refId": "A"
+            }
+          ],
+          "title": "CPU Usage",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 39,
+      "version": 1
+    }
