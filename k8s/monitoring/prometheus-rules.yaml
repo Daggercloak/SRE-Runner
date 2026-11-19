@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+
+data:
+  alerts.yml: |
+    groups:
+      - name: sre-runner-alerts
+
+        rules:
+          - alert: SRERunnerDown
+            expr: up{job="sre-runner"} == 0
+            for: 1m
+
+            labels:
+              severity: critical
+
+            annotations:
+              summary: "SRE Runner is unavailable"
+              description: "Prometheus has been unable to scrape SRE Runner for more than 1 minute."
