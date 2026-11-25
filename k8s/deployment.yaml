@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: sre-runner
-          image: sre-runner:v2
+          image: sre-runner:v5
           imagePullPolicy: Never
           ports:
            - name: metrics

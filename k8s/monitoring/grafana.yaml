@@ -31,17 +31,14 @@ spec:
             - containerPort: 3000
 
           volumeMounts:
-            # Prometheus datasource configuration
             - name: grafana-config-datasources
               mountPath: /etc/grafana/provisioning/datasources
               readOnly: true
 
-            # Dashboard provider configuration
             - name: grafana-dashboard-provider
               mountPath: /etc/grafana/provisioning/dashboards
               readOnly: true
 
-            # Actual dashboard JSON files
             - name: grafana-dashboard-files
               mountPath: /var/lib/grafana/dashboards
               readOnly: true
@@ -64,8 +61,12 @@ spec:
             items:
               - key: example-dashboard.json
                 path: example-dashboard.json
+
               - key: sre-runner-dashboard.json
                 path: sre-runner-dashboard.json
+
+              - key: golden-signals-dashboard.json
+                path: golden-signals-dashboard.json
 
 
 ---
@@ -87,7 +88,8 @@ spec:
     app: grafana
 
   ports:
-    - protocol: TCP
+    - name: web
+      protocol: TCP
       port: 3000
       targetPort: 3000
 
@@ -97,7 +99,7 @@ spec:
 ---
 
 # ==================================================
-# Prometheus Datasource
+# Grafana Datasources
 # ==================================================
 
 apiVersion: v1
@@ -114,17 +116,28 @@ data:
 
     datasources:
       - name: Prometheus
+        uid: prometheus
         type: prometheus
         access: proxy
         url: http://prometheus-service.monitoring.svc.cluster.local:9090
         isDefault: true
         editable: true
 
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki.opentelemetry.svc.cluster.local:3100
+        isDefault: false
+        editable: true
+        jsonData:
+          maxLines: 1000
+
 
 ---
 
 # ==================================================
-# Dashboard Provisioning
+# Grafana Dashboards
 # ==================================================
 
 apiVersion: v1
@@ -136,62 +149,78 @@ metadata:
     app: grafana
 
 data:
+
   dashboards.yaml: |
     apiVersion: 1
 
     providers:
-      - name: 'default'
+      - name: "default"
         orgId: 1
-        folder: ''
+        folder: ""
         type: file
         disableDeletion: false
         editable: true
+        updateIntervalSeconds: 30
 
         options:
           path: /var/lib/grafana/dashboards
+
+
+  # ==================================================
+  # Academy Example Dashboard
+  # ==================================================
 
   example-dashboard.json: |
     {
       "id": null,
       "uid": "example-dashboard",
       "title": "Example Dashboard",
-      "tags": [],
+      "tags": ["sre-academy"],
       "timezone": "browser",
       "editable": true,
+      "schemaVersion": 39,
+      "version": 1,
       "panels": [
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "Prometheus"
-          },
           "id": 1,
+          "title": "CPU Usage",
+          "type": "timeseries",
           "gridPos": {
             "h": 8,
             "w": 24,
             "x": 0,
             "y": 0
           },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "targets": [
             {
               "expr": "sum by(job) (rate(process_cpu_seconds_total[1m]))",
+              "legendFormat": "{{job}}",
               "refId": "A"
             }
-          ],
-          "title": "CPU Usage",
-          "type": "timeseries"
+          ]
         }
-      ],
-      "schemaVersion": 39,
-      "version": 1
+      ]
     }
+
+
+  # ==================================================
+  # SRE Runner Application Dashboard
+  # ==================================================
+
   sre-runner-dashboard.json: |
     {
       "id": null,
       "uid": "sre-runner-dashboard",
       "title": "SRE Runner Dashboard",
-      "tags": ["sre-runner", "sre"],
+      "tags": ["sre-runner", "application"],
       "timezone": "browser",
       "editable": true,
+      "schemaVersion": 39,
+      "version": 1,
       "panels": [
         {
           "id": 1,
@@ -202,6 +231,10 @@ data:
             "w": 6,
             "x": 0,
             "y": 0
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           },
           "targets": [
             {
@@ -220,6 +253,10 @@ data:
             "x": 6,
             "y": 0
           },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "targets": [
             {
               "expr": "sre_runner_current_score",
@@ -236,6 +273,10 @@ data:
             "w": 6,
             "x": 12,
             "y": 0
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           },
           "targets": [
             {
@@ -254,6 +295,10 @@ data:
             "x": 18,
             "y": 0
           },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "targets": [
             {
               "expr": "sre_runner_games_started_total",
@@ -270,6 +315,10 @@ data:
             "w": 12,
             "x": 0,
             "y": 6
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
           },
           "targets": [
             {
@@ -289,6 +338,10 @@ data:
             "x": 12,
             "y": 6
           },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "targets": [
             {
               "expr": "sre_runner_obstacles_avoided_total",
@@ -297,7 +350,257 @@ data:
             }
           ]
         }
+      ]
+    }
+
+
+  # ==================================================
+  # SRE Runner Golden Signals Dashboard
+  # ==================================================
+
+  golden-signals-dashboard.json: |
+    {
+      "id": null,
+      "uid": "sre-runner-golden-signals",
+      "title": "SRE Runner - Golden Signals",
+      "tags": [
+        "sre-runner",
+        "golden-signals",
+        "observability"
       ],
+      "timezone": "browser",
+      "editable": true,
       "schemaVersion": 39,
-      "version": 1
+      "version": 1,
+      "panels": [
+
+        {
+          "id": 1,
+          "title": "LATENCY - SRE Runner Span Latency",
+          "description": "Average duration of instrumented SRE Runner spans in milliseconds.",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum by (span_name) (otel_collector_span_metrics_duration_milliseconds_sum{service_name=\"sre-runner\"}) / sum by (span_name) (otel_collector_span_metrics_duration_milliseconds_count{service_name=\"sre-runner\"})",
+              "legendFormat": "{{span_name}}",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 2,
+          "title": "TRAFFIC - SRE Runner Operations Observed",
+          "description": "Trace-derived operation counts grouped by span name.",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "expr": "sum by (span_name) (otel_collector_span_metrics_calls_total{service_name=\"sre-runner\"})",
+              "legendFormat": "{{span_name}}",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 3,
+          "title": "TRAFFIC - Kubernetes Network I/O",
+          "description": "Network receive and transmit throughput for Kubernetes workloads.",
+          "type": "timeseries",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(container_network_receive_bytes_total{job=\"cadvisor\",id=~\"/kubepods.*\"}[5m]))",
+              "legendFormat": "Receive",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(container_network_transmit_bytes_total{job=\"cadvisor\",id=~\"/kubepods.*\"}[5m]))",
+              "legendFormat": "Transmit",
+              "refId": "B"
+            }
+          ]
+        },
+
+        {
+          "id": 4,
+          "title": "ERRORS - Trace Errors",
+          "description": "OpenTelemetry spans marked with error status.",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 0,
+            "y": 16
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "expr": "sum(otel_collector_span_metrics_calls_total{service_name=\"sre-runner\",status_code=\"STATUS_CODE_ERROR\"})",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 5,
+          "title": "ERRORS - Game Collisions",
+          "description": "Total SRE Runner collisions observed by application instrumentation.",
+          "type": "stat",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 6,
+            "y": 16
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "targets": [
+            {
+              "expr": "sum(sre_runner_collisions_total)",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "SATURATION - Kubernetes Workload CPU",
+          "description": "CPU usage rate across Kubernetes workload cgroups exposed by cAdvisor.",
+          "type": "gauge",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 12,
+            "y": 16
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "min": 0
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"cadvisor\",id=~\"/kubepods.*\"}[5m]))",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 7,
+          "title": "SATURATION - Kubernetes Workload Memory",
+          "description": "Memory currently used across Kubernetes workload cgroups exposed by cAdvisor.",
+          "type": "gauge",
+          "gridPos": {
+            "h": 6,
+            "w": 6,
+            "x": 18,
+            "y": 16
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "min": 0
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "sum(container_memory_usage_bytes{job=\"cadvisor\",id=~\"/kubepods.*\"})",
+              "refId": "A"
+            }
+          ]
+        },
+
+        {
+          "id": 8,
+          "title": "ERRORS - SRE Runner Collision Logs",
+          "description": "Application collision logs collected via OpenTelemetry and stored in Loki.",
+          "type": "logs",
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 22
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "targets": [
+            {
+              "expr": "{service_name=\"sre-runner\"} |= \"Collision\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "showCommonLabels": false,
+            "wrapLogMessage": true,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true,
+            "dedupStrategy": "none",
+            "sortOrder": "Descending"
+          }
+        }
+
+      ]
     }

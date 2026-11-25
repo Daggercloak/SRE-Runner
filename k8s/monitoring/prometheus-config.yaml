@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: prometheus-config
   namespace: monitoring
+
 data:
   prometheus.yml: |
     global:
@@ -14,14 +15,55 @@ data:
     alerting:
       alertmanagers:
         - static_configs:
-          - targets:
-              - "alertmanager-service.monitoring.svc.cluster.local:9093"
+            - targets:
+                - "alertmanager-service.monitoring.svc.cluster.local:9093"
 
     scrape_configs:
+
+      # ============================================
+      # SRE Runner application metrics
+      # ============================================
+
       - job_name: "sre-runner"
 
         static_configs:
           - targets:
               - "sre-runner.default.svc.cluster.local:9090"
+
+        metrics_path: /metrics
+
+
+      # ============================================
+      # cAdvisor container metrics
+      # ============================================
+
+      - job_name: "cadvisor"
+
+        kubernetes_sd_configs:
+          - role: pod
+
+        relabel_configs:
+          - source_labels:
+              - __meta_kubernetes_pod_label_app
+            action: keep
+            regex: cadvisor
+
+          - source_labels:
+              - __meta_kubernetes_pod_container_port_name
+            action: keep
+            regex: metrics
+
+        metrics_path: /metrics
+
+
+      # ============================================
+      # OpenTelemetry SpanMetrics
+      # ============================================
+
+      - job_name: "otel-collector"
+
+        static_configs:
+          - targets:
+              - "otel-collector.opentelemetry.svc.cluster.local:9464"
 
         metrics_path: /metrics
