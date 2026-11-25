@@ -609,7 +609,7 @@ sum(
 
 ## Loki Evidence
 
-docs/images/SRE_Runner_Loki_Runing.png
+![SRE Runner logs in Loki](docs/images/SRE_Runner_Loki_Runing.png)
 
 ---
 
@@ -676,7 +676,7 @@ Application-specific visualization covering:
 - Ground/flying collisions
 - Ground/flying obstacles avoided
 
-docs/images/SRE_Runner_Grafana_Dash_1.png
+![SRE Runner Grafana dashboard](docs/images/SRE_Runner_Grafana_Dash_1.png)
 
 ---
 
@@ -684,7 +684,7 @@ docs/images/SRE_Runner_Grafana_Dash_1.png
 
 The final Grafana dashboard implements the four SRE Golden Signals using SRE Runner metrics, OpenTelemetry SpanMetrics, cAdvisor, Prometheus, and Loki.
 
-docs/images/SRE_Runner_Golden_Signals.png
+![SRE Runner Golden Signals dashboard](docs/images/SRE_Runner_Golden_Signals.png)
 
 ---
 
